@@ -5,23 +5,19 @@ import GanttTable from './components/GanttTable'
 import StructureTab from './components/StructureTab'
 import AttributesTab from './components/AttributesTab'
 import PDFExportModal from './components/PDFExportModal'
+import ContextMenu from './components/ContextMenu'
+import Legend from './components/Legend'
 import { generateGanttRows } from './utils/ganttUtils'
-import jsPDF from 'jspdf'
-import html2canvas from 'html2canvas'
+import { availableAttributes } from './constants/attributes'
+import { exportJSON, importJSON, exportPDF } from './utils/exportUtils'
 
-const API_URL = 'http://localhost:6001/api'
+// Dynamic API URL based on current host
+const getApiUrl = () => {
+  const hostname = window.location.hostname
+  return `http://${hostname}:6001/api`
+}
 
-const availableAttributes = [
-  { value: 'productType', label: '제품 Type' },
-  { value: 'density', label: 'Density' },
-  { value: 'process', label: '공정명' },
-  { value: 'isMainProcess', label: '모공정 여부' },
-  { value: 'isNPI', label: 'NPI 여부' },
-  { value: 'organization', label: 'Organization' },
-  { value: 'stackMethod', label: 'Stack 방식' },
-  { value: 'numberOfStack', label: 'Number of Stack' },
-  { value: 'numberOfDie', label: 'Number of Die' }
-]
+const API_URL = getApiUrl()
 
 function App() {
   const [tasks, setTasks] = useState([])
@@ -365,7 +361,12 @@ function App() {
   // Context menu handlers
   const handleTaskRightClick = (e, taskId) => {
     e.preventDefault()
-    setContextMenu({ x: e.clientX, y: e.clientY, taskId })
+    setContextMenu({ x: e.clientX, y: e.clientY, taskId, type: 'task' })
+  }
+
+  const handleRowRightClick = (e, rowTasks) => {
+    e.preventDefault()
+    setContextMenu({ x: e.clientX, y: e.clientY, rowTasks, type: 'row' })
   }
 
   const handleChangeTaskShape = (taskId, newShape) => {
@@ -373,6 +374,15 @@ function App() {
       ...taskShapes,
       [taskId]: newShape
     })
+    setContextMenu(null)
+  }
+
+  const handleChangeRowShapes = (taskIds, newShape) => {
+    const newShapes = { ...taskShapes }
+    taskIds.forEach(id => {
+      newShapes[id] = newShape
+    })
+    setTaskShapes(newShapes)
     setContextMenu(null)
   }
 
@@ -389,13 +399,6 @@ function App() {
   const handleExportPDF = async (options) => {
     try {
       const { orientation, pageSize, fitToPage } = options
-
-      // Page dimensions (mm)
-      const pageSizes = {
-        A3: { width: 297, height: 420 },
-        A4: { width: 210, height: 297 },
-        A5: { width: 148, height: 210 }
-      }
 
       const size = pageSizes[pageSize]
       const pdfWidth = orientation === 'landscape' ? size.height : size.width
@@ -488,64 +491,41 @@ function App() {
 
   // Export current state as JSON
   const handleExportJSON = () => {
-    const exportData = {
-      version: '1.0',
-      exportDate: new Date().toISOString(),
+    exportJSON({
       summary: summaryContent,
-      timeline: {
-        startYear,
-        endYear,
-        showQuarters,
-        showMonths,
-        dateFormat
-      },
+      timeline: { startYear, endYear, showQuarters, showMonths, dateFormat },
       structure: structureRows,
       attributes: taskConfig,
       taskShapes,
       tasks
-    }
-
-    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `flexiblegantt-${new Date().toISOString().split('T')[0]}.json`
-    a.click()
-    URL.revokeObjectURL(url)
+    })
   }
 
   // Import JSON file
-  const handleImportJSON = (e) => {
+  const handleImportJSON = async (e) => {
     const file = e.target.files[0]
     if (!file) return
 
-    const reader = new FileReader()
-    reader.onload = (event) => {
-      try {
-        const data = JSON.parse(event.target.result)
-
-        // Restore all settings
-        if (data.summary) setSummaryContent(data.summary)
-        if (data.timeline) {
-          setStartYear(data.timeline.startYear)
-          setEndYear(data.timeline.endYear)
-          setShowQuarters(data.timeline.showQuarters)
-          setShowMonths(data.timeline.showMonths)
-          setDateFormat(data.timeline.dateFormat || 'YYYY-MM-DD')
-        }
-        if (data.structure) setStructureRows(data.structure)
-        if (data.attributes) setTaskConfig(data.attributes)
-        if (data.taskShapes) setTaskShapes(data.taskShapes)
-        if (data.tasks) setTasks(data.tasks)
-
-        alert('설정을 성공적으로 불러왔습니다!')
-      } catch (err) {
-        alert('파일을 읽는 중 오류가 발생했습니다: ' + err.message)
-      }
+    try {
+      await importJSON(file, {
+        setSummary: setSummaryContent,
+        setTimeline: (timeline) => {
+          setStartYear(timeline.startYear)
+          setEndYear(timeline.endYear)
+          setShowQuarters(timeline.showQuarters)
+          setShowMonths(timeline.showMonths)
+          setDateFormat(timeline.dateFormat || 'YYYY-MM-DD')
+        },
+        setStructure: setStructureRows,
+        setAttributes: setTaskConfig,
+        setTaskShapes: setTaskShapes,
+        setTasks: setTasks
+      })
+      alert('설정을 성공적으로 불러왔습니다!')
+    } catch (err) {
+      alert('파일을 읽는 중 오류가 발생했습니다: ' + err.message)
     }
-    reader.readAsText(file)
 
-    // Reset input
     e.target.value = ''
   }
 
@@ -762,104 +742,7 @@ function App() {
           </div>
 
           {/* Legend */}
-          <div className="p-3 border-b border-gray-300 bg-gray-50">
-            <div className="flex justify-end">
-              <div className="border-2 border-dashed border-gray-400 rounded-lg p-3 bg-white">
-                <div className="flex items-center gap-6">
-                  <span className="text-xs font-semibold text-gray-600">범례:</span>
-
-                  {/* Gantt Bar - show actual attributes */}
-                  <div className="flex items-center gap-2">
-                    <div className="relative">
-                      <div
-                        className="border border-gray-400 relative"
-                        style={{
-                          width: '80px',
-                          height: '32px',
-                          backgroundColor: '#93C5FD',
-                          clipPath: 'polygon(0 0, 85% 0, 100% 50%, 85% 100%, 0 100%)'
-                        }}
-                      >
-                        {/* Show actual gantt attributes */}
-                        {taskConfig.ganttAttributes.slice(0, 3).map((attr, idx) => (
-                          <div key={attr} className="absolute bg-white border border-gray-400 px-1 rounded" style={{
-                            left: '8%',
-                            top: `${25 + idx * 30}%`,
-                            fontSize: '6px',
-                            transform: 'translateY(-50%)'
-                          }}>
-                            {availableAttributes.find(a => a.value === attr)?.label.slice(0, 4)}
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Circle - show actual shape attributes */}
-                  <div className="flex items-center gap-1">
-                    <div
-                      className="border border-gray-400 flex items-center justify-center"
-                      style={{
-                        width: '28px',
-                        height: '28px',
-                        backgroundColor: '#93C5FD',
-                        clipPath: 'circle(50% at 50% 50%)',
-                        fontSize: '6px'
-                      }}
-                    >
-                      {taskConfig.shapeAttributes[0] ? '①' : ''}
-                    </div>
-                    <div className="flex flex-col gap-1" style={{ fontSize: '6px' }}>
-                      {taskConfig.shapeAttributes.slice(1, 4).map((attr, idx) => (
-                        <div key={attr}>{availableAttributes.find(a => a.value === attr)?.label.slice(0, 4)}</div>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Rectangle - show actual shape attributes */}
-                  <div className="flex items-center gap-1">
-                    <div
-                      className="border border-gray-400 flex items-center justify-center"
-                      style={{
-                        width: '28px',
-                        height: '28px',
-                        backgroundColor: '#93C5FD',
-                        fontSize: '6px'
-                      }}
-                    >
-                      {taskConfig.shapeAttributes[0] ? '①' : ''}
-                    </div>
-                    <div className="flex flex-col gap-1" style={{ fontSize: '6px' }}>
-                      {taskConfig.shapeAttributes.slice(1, 4).map((attr, idx) => (
-                        <div key={attr}>{availableAttributes.find(a => a.value === attr)?.label.slice(0, 4)}</div>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Triangle - show actual shape attributes */}
-                  <div className="flex items-center gap-1">
-                    <div
-                      className="border border-gray-400 flex items-center justify-center"
-                      style={{
-                        width: '28px',
-                        height: '28px',
-                        backgroundColor: '#93C5FD',
-                        clipPath: 'polygon(50% 0%, 0% 100%, 100% 100%)',
-                        fontSize: '6px'
-                      }}
-                    >
-                      {taskConfig.shapeAttributes[0] ? '①' : ''}
-                    </div>
-                    <div className="flex flex-col gap-1" style={{ fontSize: '6px' }}>
-                      {taskConfig.shapeAttributes.slice(1, 4).map((attr, idx) => (
-                        <div key={attr}>{availableAttributes.find(a => a.value === attr)?.label.slice(0, 4)}</div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
+          <Legend taskConfig={taskConfig} />
 
           <div className="overflow-x-auto">
             {loading ? (
@@ -882,6 +765,7 @@ function App() {
                 dateFormat={dateFormat}
                 getTaskShape={getTaskShape}
                 handleTaskRightClick={handleTaskRightClick}
+                handleRowRightClick={handleRowRightClick}
               />
             )}
           </div>
@@ -897,23 +781,12 @@ function App() {
       />
 
       {/* Context Menu */}
-      {contextMenu && (
-        <div
-          className="fixed bg-white border border-gray-400 rounded shadow-lg py-1 z-50"
-          style={{ left: contextMenu.x, top: contextMenu.y }}
-          onClick={(e) => e.stopPropagation()}
-        >
-          {['gantt', 'circle', 'rectangle', 'triangle'].map(shape => (
-            <button
-              key={shape}
-              onClick={() => handleChangeTaskShape(contextMenu.taskId, shape)}
-              className="block w-full text-left px-4 py-2 text-sm hover:bg-gray-100"
-            >
-              {shape === 'gantt' ? '▶ Gantt Bar' : shape === 'circle' ? '● Circle' : shape === 'rectangle' ? '■ Rectangle' : '▲ Triangle'}
-            </button>
-          ))}
-        </div>
-      )}
+      <ContextMenu
+        contextMenu={contextMenu}
+        onClose={handleCloseContextMenu}
+        onSelectShape={handleChangeTaskShape}
+        onSelectRowShapes={handleChangeRowShapes}
+      />
 
       {/* Footer */}
       <footer className="mt-12 py-6 border-t border-gray-300">

@@ -1,4 +1,4 @@
-function GanttTable({ allRows, years, showQuarters, showMonths, numDepths, getTaskPosition, handleTaskMouseDown, dragState, taskConfig, dateFormat, getTaskShape, handleTaskRightClick }) {
+function GanttTable({ allRows, years, showQuarters, showMonths, numDepths, getTaskPosition, handleTaskMouseDown, dragState, taskConfig, dateFormat, getTaskShape, handleTaskRightClick, handleRowRightClick }) {
   const quarters = ['Q1', 'Q2', 'Q3', 'Q4']
   const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 
@@ -126,7 +126,9 @@ function GanttTable({ allRows, years, showQuarters, showMonths, numDepths, getTa
                     <td
                       key={colIdx}
                       rowSpan={rowspan}
-                      className="bg-gray-200 border border-gray-400 px-4 py-3 text-center text-sm font-semibold text-gray-800 align-middle"
+                      className="bg-gray-200 border border-gray-400 px-4 py-3 text-center text-sm font-semibold text-gray-800 align-middle cursor-pointer hover:bg-gray-300"
+                      onContextMenu={(e) => handleRowRightClick(e, row.tasks)}
+                      title="Right-click to change all tasks in this row"
                     >
                       {colValue}
                     </td>
