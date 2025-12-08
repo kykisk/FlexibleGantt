@@ -1,4 +1,8 @@
-// Shape options
+/**
+ * 도형 옵션
+ *
+ * Task를 표현할 수 있는 도형 종류
+ */
 export const shapeOptions = [
   { value: 'gantt', label: 'Gantt Bar', icon: '▶' },
   { value: 'circle', label: 'Circle', icon: '●' },
@@ -6,7 +10,12 @@ export const shapeOptions = [
   { value: 'triangle', label: 'Triangle', icon: '▲' }
 ]
 
-// Color options
+/**
+ * 색상 옵션
+ *
+ * Task 바에 적용 가능한 색상 목록
+ * Teamcenter 디자인 규정에 맞춰 색상을 변경할 수 있습니다.
+ */
 export const colorOptions = [
   { value: '#000000', label: '검은색' },
   { value: '#808080', label: '회색' },
@@ -18,7 +27,9 @@ export const colorOptions = [
   { value: '#A855F7', label: '보라색' }
 ]
 
-// Date format options
+/**
+ * 날짜 포맷 옵션
+ */
 export const dateFormatOptions = [
   { value: 'YYYY-MM-DD', label: 'YYYY-MM-DD' },
   { value: 'MM/DD/YYYY', label: 'MM/DD/YYYY' },
@@ -27,7 +38,9 @@ export const dateFormatOptions = [
   { value: 'MM-DD', label: 'MM-DD' }
 ]
 
-// PDF page sizes
+/**
+ * PDF 용지 크기 (mm 단위)
+ */
 export const pageSizes = {
   A3: { width: 297, height: 420 },
   A4: { width: 210, height: 297 },

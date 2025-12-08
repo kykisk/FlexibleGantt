@@ -16,13 +16,13 @@
  *
  * 실제 구현 시 프로젝트의 SOA 호출 방식에 맞춰 수정하세요.
  *
- * @example
+ * @예시
  * const result = await callTeamcenterSOA('Custom-2024-06-DataManagement', 'loadObjects', {
  *   uids: ['abc123']
  * })
  */
 const callTeamcenterSOA = async (serviceName, operationName, inputData) => {
-  // TODO: 실제 Teamcenter SOA 호출 구현
+  // 할일: 실제 Teamcenter SOA 호출 구현
   // 예시: return await soaService.post(serviceName, operationName, inputData)
   throw new Error('Teamcenter SOA 연동이 필요합니다. 이 함수를 구현하세요.')
 }
@@ -36,13 +36,13 @@ const callTeamcenterSOA = async (serviceName, operationName, inputData) => {
  *
  * Teamcenter DB 테이블: TC_GANTT_CONFIG
  *
- * @param {string} userId - 사용자 ID
- * @param {string} projectId - 프로젝트 ID
- * @returns {Promise<Object>} Gantt 설정 객체
+ * @매개변수 {string} userId - 사용자 ID
+ * @매개변수 {string} projectId - 프로젝트 ID
+ * @반환값 {Promise<Object>} Gantt 설정 객체
  *
- * @example
+ * @예시
  * const config = await loadGanttConfig('user123', 'proj456')
- * // Returns:
+ * // 반환값:
  * // {
  * //   summary: "Summary 내용",
  * //   timeline: { startYear: 2022, endYear: 2026, ... },
@@ -53,7 +53,7 @@ const callTeamcenterSOA = async (serviceName, operationName, inputData) => {
  */
 export const loadGanttConfig = async (userId, projectId) => {
   try {
-    // TODO: Teamcenter DB에서 설정 조회
+    // 할일: Teamcenter DB에서 설정 조회
     // SELECT * FROM TC_GANTT_CONFIG WHERE user_id = ? AND project_id = ?
 
     const result = await callTeamcenterSOA(
@@ -71,7 +71,7 @@ export const loadGanttConfig = async (userId, projectId) => {
       taskShapes: JSON.parse(result.taskShapes || '{}')
     }
   } catch (error) {
-    console.error('Failed to load Gantt config:', error)
+    console.error('Gantt 설정 로드 실패:', error)
     // 기본값 반환
     return getDefaultConfig()
   }
@@ -80,10 +80,10 @@ export const loadGanttConfig = async (userId, projectId) => {
 /**
  * Gantt 설정을 Teamcenter DB에 저장
  *
- * @param {string} configId - 설정 ID (없으면 신규 생성)
- * @param {Object} configData - 저장할 설정 데이터
+ * @매개변수 {string} configId - 설정 ID (없으면 신규 생성)
+ * @매개변수 {Object} configData - 저장할 설정 데이터
  *
- * @example
+ * @예시
  * await saveGanttConfig('config123', {
  *   summary: summaryContent,
  *   timeline: { startYear, endYear, ... },
@@ -94,7 +94,7 @@ export const loadGanttConfig = async (userId, projectId) => {
  */
 export const saveGanttConfig = async (configId, configData) => {
   try {
-    // TODO: Teamcenter DB에 저장
+    // 할일: Teamcenter DB에 저장
     // INSERT INTO TC_GANTT_CONFIG ... 또는 UPDATE ...
 
     await callTeamcenterSOA(
@@ -112,7 +112,7 @@ export const saveGanttConfig = async (configId, configData) => {
 
     return { success: true }
   } catch (error) {
-    console.error('Failed to save Gantt config:', error)
+    console.error('Gantt 설정 저장 실패:', error)
     throw error
   }
 }
@@ -124,16 +124,16 @@ export const saveGanttConfig = async (configId, configData) => {
 /**
  * Task 데이터를 Teamcenter DB에서 로드
  *
- * @param {string} configId - Gantt 설정 ID
- * @returns {Promise<Array>} Task 배열
+ * @매개변수 {string} configId - Gantt 설정 ID
+ * @반환값 {Promise<Array>} Task 배열
  *
- * @example
+ * @예시
  * const tasks = await loadTasks('config123')
- * // Returns: [ { id, startDate, endDate, productType, density, ... }, ... ]
+ * // 반환값: [ { id, startDate, endDate, productType, density, ... }, ... ]
  */
 export const loadTasks = async (configId) => {
   try {
-    // TODO: Teamcenter DB에서 Task 조회
+    // 할일: Teamcenter DB에서 Task 조회
     // SELECT * FROM TC_GANTT_TASKS WHERE config_id = ?
 
     const result = await callTeamcenterSOA(
@@ -144,7 +144,7 @@ export const loadTasks = async (configId) => {
 
     return result.tasks || []
   } catch (error) {
-    console.error('Failed to load tasks:', error)
+    console.error('Task 로드 실패:', error)
     return []
   }
 }
@@ -152,10 +152,10 @@ export const loadTasks = async (configId) => {
 /**
  * Task 생성
  *
- * @param {string} configId - Gantt 설정 ID
- * @param {Object} taskData - Task 데이터
+ * @매개변수 {string} configId - Gantt 설정 ID
+ * @매개변수 {Object} taskData - Task 데이터
  *
- * @example
+ * @예시
  * await createTask('config123', {
  *   startDate: '2022-01-15',
  *   endDate: '2022-03-15',
@@ -166,7 +166,7 @@ export const loadTasks = async (configId) => {
  */
 export const createTask = async (configId, taskData) => {
   try {
-    // TODO: Teamcenter DB에 Task 생성
+    // 할일: Teamcenter DB에 Task 생성
     // INSERT INTO TC_GANTT_TASKS ...
 
     await callTeamcenterSOA(
@@ -177,7 +177,7 @@ export const createTask = async (configId, taskData) => {
 
     return { success: true }
   } catch (error) {
-    console.error('Failed to create task:', error)
+    console.error('Task 생성 실패:', error)
     throw error
   }
 }
@@ -185,12 +185,12 @@ export const createTask = async (configId, taskData) => {
 /**
  * Task 업데이트
  *
- * @param {string} taskId - Task ID
- * @param {Object} updates - 업데이트할 필드
+ * @매개변수 {string} taskId - Task ID
+ * @매개변수 {Object} updates - 업데이트할 필드
  */
 export const updateTask = async (taskId, updates) => {
   try {
-    // TODO: Teamcenter DB Task 업데이트
+    // 할일: Teamcenter DB Task 업데이트
     // UPDATE TC_GANTT_TASKS SET ... WHERE task_id = ?
 
     await callTeamcenterSOA(
@@ -201,7 +201,7 @@ export const updateTask = async (taskId, updates) => {
 
     return { success: true }
   } catch (error) {
-    console.error('Failed to update task:', error)
+    console.error('Task 업데이트 실패:', error)
     throw error
   }
 }
@@ -219,7 +219,7 @@ export const deleteTask = async (taskId) => {
 
     return { success: true }
   } catch (error) {
-    console.error('Failed to delete task:', error)
+    console.error('Task 삭제 실패:', error)
     throw error
   }
 }
@@ -277,8 +277,8 @@ const getDefaultConfig = () => {
  *
  * 우클릭으로 변경한 도형은 taskShapes에 저장되어야 함
  *
- * @param {string} configId - 설정 ID
- * @param {Object} taskShapes - { taskId: 'gantt' | 'circle' | ... }
+ * @매개변수 {string} configId - 설정 ID
+ * @매개변수 {Object} taskShapes - { taskId: 'gantt' | 'circle' | ... }
  */
 export const saveTaskShapes = async (configId, taskShapes) => {
   try {
@@ -290,7 +290,7 @@ export const saveTaskShapes = async (configId, taskShapes) => {
 
     return { success: true }
   } catch (error) {
-    console.error('Failed to save task shapes:', error)
+    console.error('Task 도형 저장 실패:', error)
     throw error
   }
 }

@@ -1,4 +1,10 @@
-// Format date based on selected format
+/**
+ * 선택한 포맷에 따라 날짜 형식 변환
+ *
+ * @매개변수 {string} dateStr - 날짜 문자열 (ISO 형식)
+ * @매개변수 {string} format - 날짜 포맷 (YYYY-MM-DD, MM/DD/YYYY 등)
+ * @반환값 {string} 포맷팅된 날짜 문자열
+ */
 export const formatDate = (dateStr, format) => {
   if (!dateStr) return ''
 
