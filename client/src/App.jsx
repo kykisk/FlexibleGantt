@@ -9,7 +9,10 @@ import ContextMenu from './components/ContextMenu'
 import Legend from './components/Legend'
 import { generateGanttRows } from './utils/ganttUtils'
 import { availableAttributes } from './constants/attributes'
+import { pageSizes } from './constants/shapes'
 import { exportJSON, importJSON, exportPDF } from './utils/exportUtils'
+import jsPDF from 'jspdf'
+import html2canvas from 'html2canvas'
 
 // Dynamic API URL based on current host
 const getApiUrl = () => {
