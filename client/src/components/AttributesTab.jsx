@@ -43,21 +43,26 @@ function AttributesTab({ taskConfig, setTaskConfig }) {
   const [tempPosition, setTempPosition] = useState(null) // Temporary position while dragging
 
   const toggleAttribute = (attrValue) => {
-    const isSelected = taskConfig.selectedAttributes.includes(attrValue)
+    const isGantt = taskConfig.shape === 'gantt'
+    const currentAttr = isGantt ? 'ganttAttributes' : 'shapeAttributes'
+    const selectedAttrs = taskConfig[currentAttr]
+    const maxCount = isGantt ? 8 : 4
+
+    const isSelected = selectedAttrs.includes(attrValue)
 
     if (isSelected) {
       setTaskConfig({
         ...taskConfig,
-        selectedAttributes: taskConfig.selectedAttributes.filter(a => a !== attrValue)
+        [currentAttr]: selectedAttrs.filter(a => a !== attrValue)
       })
     } else {
-      if (taskConfig.selectedAttributes.length >= 8) {
-        alert('최대 8개까지만 선택 가능합니다.')
+      if (selectedAttrs.length >= maxCount) {
+        alert(`최대 ${maxCount}개까지만 선택 가능합니다.`)
         return
       }
       setTaskConfig({
         ...taskConfig,
-        selectedAttributes: [...taskConfig.selectedAttributes, attrValue]
+        [currentAttr]: [...selectedAttrs, attrValue]
       })
     }
   }
@@ -82,39 +87,54 @@ function AttributesTab({ taskConfig, setTaskConfig }) {
   const handlePreviewMouseMove = (e) => {
     if (!isDragging || !draggedLabel) return
 
-    const shapeElement = e.currentTarget.querySelector('.shape-element')
-    if (!shapeElement) return
+    const previewArea = e.currentTarget.querySelector('.preview-area')
+    const shapeElement = previewArea?.querySelector('.shape-element')
+    if (!shapeElement || !previewArea) return
 
+    const previewRect = previewArea.getBoundingClientRect()
     const shapeRect = shapeElement.getBoundingClientRect()
 
     // Mouse position with offset
     const mouseX = e.clientX - dragOffset.x
     const mouseY = e.clientY - dragOffset.y
 
-    // Convert absolute mouse position to position relative to shape
-    const relativeToShapeX = mouseX - shapeRect.left
-    const relativeToShapeY = mouseY - shapeRect.top
+    // Define placement area: shape + padding (e.g., 150% of shape size)
+    const placementPadding = 0.5 // 50% padding on each side
+    const placementWidth = shapeRect.width * (1 + placementPadding * 2)
+    const placementHeight = shapeRect.height * (1 + placementPadding * 2)
+    const placementLeft = shapeRect.left - shapeRect.width * placementPadding
+    const placementTop = shapeRect.top - shapeRect.height * placementPadding
+
+    // Clamp to placement area (not preview area)
+    const clampedMouseX = Math.max(placementLeft, Math.min(placementLeft + placementWidth, mouseX))
+    const clampedMouseY = Math.max(placementTop, Math.min(placementTop + placementHeight, mouseY))
+
+    // Also ensure we don't go outside preview area
+    const finalX = Math.max(previewRect.left + 10, Math.min(previewRect.right - 10, clampedMouseX))
+    const finalY = Math.max(previewRect.top + 10, Math.min(previewRect.bottom - 10, clampedMouseY))
+
+    // Convert to shape-relative position (can be negative or > 100%)
+    const relativeToShapeX = finalX - shapeRect.left
+    const relativeToShapeY = finalY - shapeRect.top
 
     const x = (relativeToShapeX / shapeRect.width) * 100
     const y = (relativeToShapeY / shapeRect.height) * 100
 
-    // Clamp to keep within shape bounds (0-100%)
-    const clampedX = Math.max(5, Math.min(95, x))
-    const clampedY = Math.max(10, Math.min(90, y))
-
-    setTempPosition({ x: clampedX, y: clampedY })
+    setTempPosition({ x, y })
   }
 
   const handleMouseUp = () => {
     if (isDragging && draggedLabel && tempPosition) {
-      // Save final position
-      setTaskConfig({
-        ...taskConfig,
-        labelPositions: {
-          ...taskConfig.labelPositions,
-          [draggedLabel]: tempPosition
-        }
-      })
+      // Save final position (only for gantt)
+      if (taskConfig.shape === 'gantt') {
+        setTaskConfig({
+          ...taskConfig,
+          ganttLabelPositions: {
+            ...taskConfig.ganttLabelPositions,
+            [draggedLabel]: tempPosition
+          }
+        })
+      }
     }
 
     setIsDragging(false)
@@ -130,25 +150,28 @@ function AttributesTab({ taskConfig, setTaskConfig }) {
           {/* Attribute Selection - Compact grid */}
           <div className="mb-4">
             <h3 className="text-sm font-semibold text-gray-800 mb-2">
-              Attributes ({taskConfig.selectedAttributes.length}/8)
+              Attributes ({(taskConfig.shape === 'gantt' ? taskConfig.ganttAttributes : taskConfig.shapeAttributes).length}/{taskConfig.shape === 'gantt' ? 8 : 4})
             </h3>
             <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
-              {availableAttributes.map((attr) => (
-                <label key={attr.value} className="flex items-center gap-2 p-1 hover:bg-gray-50 rounded cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={taskConfig.selectedAttributes.includes(attr.value)}
-                    onChange={() => toggleAttribute(attr.value)}
-                    className="w-3 h-3"
-                  />
-                  <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-blue-500 text-white text-xs">
-                    {taskConfig.selectedAttributes.indexOf(attr.value) >= 0
-                      ? taskConfig.selectedAttributes.indexOf(attr.value) + 1
-                      : ''}
-                  </span>
-                  <span className="text-gray-700">{attr.label}</span>
-                </label>
-              ))}
+              {availableAttributes.map((attr) => {
+                const currentAttrs = taskConfig.shape === 'gantt' ? taskConfig.ganttAttributes : taskConfig.shapeAttributes
+                const attrIndex = currentAttrs.indexOf(attr.value)
+
+                return (
+                  <label key={attr.value} className="flex items-center gap-2 p-1 hover:bg-gray-50 rounded cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={currentAttrs.includes(attr.value)}
+                      onChange={() => toggleAttribute(attr.value)}
+                      className="w-3 h-3"
+                    />
+                    <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-blue-500 text-white text-xs">
+                      {attrIndex >= 0 ? attrIndex + 1 : ''}
+                    </span>
+                    <span className="text-gray-700">{attr.label}</span>
+                  </label>
+                )
+              })}
             </div>
           </div>
 
@@ -201,35 +224,37 @@ function AttributesTab({ taskConfig, setTaskConfig }) {
 
           <div
             className="relative border-2 border-gray-300 rounded-lg p-4 bg-gray-50 select-none"
-            style={{ height: '280px', overflow: 'visible' }}
+            style={{ height: '350px', overflow: 'visible' }}
             onMouseMove={handlePreviewMouseMove}
             onMouseUp={handleMouseUp}
             onMouseLeave={handleMouseUp}
           >
-            {/* Task Shape Preview */}
-            <div className="preview-area absolute inset-4 border border-dashed border-gray-400 rounded flex items-center justify-center">
+            {/* Task Shape Preview - wider area to show attributes on right */}
+            <div className="preview-area absolute inset-2 border border-dashed border-gray-400 rounded" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               {/* Shape with labels inside - use relative positioning */}
-              <div
-                className="shape-element relative border-2 cursor-pointer"
-                style={{
-                  width: taskConfig.shape === 'gantt' ? '240px' : '50px',
-                  height: '50px',
-                  backgroundColor: taskConfig.color,
-                  opacity: 0.8,
-                  clipPath: taskConfig.shape === 'gantt'
-                    ? 'polygon(0 0, 85% 0, 100% 50%, 85% 100%, 0 100%)'
-                    : taskConfig.shape === 'circle'
-                    ? 'circle(50% at 50% 50%)'
-                    : taskConfig.shape === 'triangle'
-                    ? 'polygon(50% 0%, 0% 100%, 100% 100%)'
-                    : 'none',
-                  overflow: 'visible'
-                }}
-              >
-                {/* Attribute Labels - inside shape as children */}
-                {taskConfig.selectedAttributes.map((attrValue, idx) => {
+              {/* Wrapper for shape + labels */}
+              <div className="relative" style={{ display: 'inline-flex', alignItems: 'flex-start' }}>
+                {/* Shape */}
+                <div
+                  className="shape-element relative border-2 cursor-pointer"
+                  style={{
+                    width: taskConfig.shape === 'gantt' ? '240px' : '100px',
+                    height: taskConfig.shape === 'gantt' ? '120px' : '100px',
+                    backgroundColor: taskConfig.color,
+                    opacity: 0.8,
+                    clipPath: taskConfig.shape === 'gantt'
+                      ? 'polygon(0 0, 85% 0, 100% 50%, 85% 100%, 0 100%)'
+                      : taskConfig.shape === 'circle'
+                      ? 'circle(50% at 50% 50%)'
+                      : taskConfig.shape === 'triangle'
+                      ? 'polygon(50% 0%, 0% 100%, 100% 100%)'
+                      : 'none'
+                  }}
+                >
+                  {/* Gantt Bar: draggable labels inside */}
+                  {taskConfig.shape === 'gantt' && taskConfig.ganttAttributes.map((attrValue, idx) => {
                   const attr = availableAttributes.find(a => a.value === attrValue)
-                  const savedPosition = taskConfig.labelPositions[attrValue] || { x: 50, y: 30 + idx * 20 }
+                  const savedPosition = taskConfig.ganttLabelPositions[attrValue] || { x: 50, y: 30 + idx * 20 }
 
                   // Use temporary position while dragging for instant feedback
                   const position = (isDragging && draggedLabel === attrValue && tempPosition)
@@ -258,7 +283,49 @@ function AttributesTab({ taskConfig, setTaskConfig }) {
                       {attr?.label}
                     </div>
                   )
-                })}
+                  })}
+
+                  {/* 1st attribute - inside shape, center, fixed */}
+                  {taskConfig.shape !== 'gantt' && taskConfig.shapeAttributes[0] && (
+                    <div
+                      className="absolute pointer-events-none"
+                      style={{
+                        left: '50%',
+                        top: '50%',
+                        transform: 'translate(-50%, -50%)',
+                        fontSize: '10px',
+                        zIndex: 10
+                      }}
+                    >
+                      <div className="bg-white border border-gray-400 px-1 py-0.5 rounded text-xs shadow-sm">
+                        <span className="inline-flex items-center justify-center w-3 h-3 rounded-full bg-blue-500 text-white mr-1" style={{ fontSize: '8px' }}>
+                          1
+                        </span>
+                        {availableAttributes.find(a => a.value === taskConfig.shapeAttributes[0])?.label}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* 2nd-4th attributes - right side of shape, vertical stack */}
+                {taskConfig.shape !== 'gantt' && taskConfig.shapeAttributes.length > 1 && (
+                  <div className="ml-3 flex flex-col gap-2">
+                    {taskConfig.shapeAttributes.slice(1, 4).map((attrValue, idx) => {
+                      const attr = availableAttributes.find(a => a.value === attrValue)
+
+                      return (
+                        <div key={attrValue}>
+                          <div className="bg-white border border-gray-400 px-1 py-0.5 rounded text-xs shadow-sm whitespace-nowrap">
+                            <span className="inline-flex items-center justify-center w-3 h-3 rounded-full bg-blue-500 text-white mr-1" style={{ fontSize: '8px' }}>
+                              {idx + 2}
+                            </span>
+                            {attr?.label}
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
               </div>
             </div>
 

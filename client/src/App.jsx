@@ -4,14 +4,32 @@ import RichTextEditor from './components/RichTextEditor'
 import GanttTable from './components/GanttTable'
 import StructureTab from './components/StructureTab'
 import AttributesTab from './components/AttributesTab'
+import PDFExportModal from './components/PDFExportModal'
 import { generateGanttRows } from './utils/ganttUtils'
+import jsPDF from 'jspdf'
+import html2canvas from 'html2canvas'
 
 const API_URL = 'http://localhost:6001/api'
+
+const availableAttributes = [
+  { value: 'productType', label: '제품 Type' },
+  { value: 'density', label: 'Density' },
+  { value: 'process', label: '공정명' },
+  { value: 'isMainProcess', label: '모공정 여부' },
+  { value: 'isNPI', label: 'NPI 여부' },
+  { value: 'organization', label: 'Organization' },
+  { value: 'stackMethod', label: 'Stack 방식' },
+  { value: 'numberOfStack', label: 'Number of Stack' },
+  { value: 'numberOfDie', label: 'Number of Die' }
+]
 
 function App() {
   const [tasks, setTasks] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  const [taskShapes, setTaskShapes] = useState({}) // Individual task shapes: { taskId: 'gantt' | 'circle' | 'rectangle' | 'triangle' }
+  const [contextMenu, setContextMenu] = useState(null) // { x, y, taskId }
+  const [showPDFModal, setShowPDFModal] = useState(false)
 
   // Rich Text Editor state
   const [summaryContent, setSummaryContent] = useState('FlexibleGantt Chart Report를 위한 Summary를 작성하세요.')
@@ -50,16 +68,19 @@ function App() {
     }
   ])
 
-  // Task configuration (Attributes tab)
+  // Task configuration (Attributes tab) - split by shape type
   const [taskConfig, setTaskConfig] = useState({
-    selectedAttributes: ['productType', 'density', 'process'],
     shape: 'gantt',
     color: '#93C5FD',
-    labelPositions: {
+    // Gantt Bar specific
+    ganttAttributes: ['productType', 'density', 'process'],
+    ganttLabelPositions: {
       productType: { x: 50, y: 35 },
       density: { x: 50, y: 50 },
       process: { x: 50, y: 65 }
-    }
+    },
+    // Other shapes specific (max 4)
+    shapeAttributes: ['productType', 'density']
   })
 
   useEffect(() => {
@@ -341,6 +362,193 @@ function App() {
     })
   }
 
+  // Context menu handlers
+  const handleTaskRightClick = (e, taskId) => {
+    e.preventDefault()
+    setContextMenu({ x: e.clientX, y: e.clientY, taskId })
+  }
+
+  const handleChangeTaskShape = (taskId, newShape) => {
+    setTaskShapes({
+      ...taskShapes,
+      [taskId]: newShape
+    })
+    setContextMenu(null)
+  }
+
+  const handleCloseContextMenu = () => {
+    setContextMenu(null)
+  }
+
+  // Get shape for a specific task (individual or default)
+  const getTaskShape = (taskId) => {
+    return taskShapes[taskId] || taskConfig.shape
+  }
+
+  // Export as PDF
+  const handleExportPDF = async (options) => {
+    try {
+      const { orientation, pageSize, fitToPage } = options
+
+      // Page dimensions (mm)
+      const pageSizes = {
+        A3: { width: 297, height: 420 },
+        A4: { width: 210, height: 297 },
+        A5: { width: 148, height: 210 }
+      }
+
+      const size = pageSizes[pageSize]
+      const pdfWidth = orientation === 'landscape' ? size.height : size.width
+      const pdfHeight = orientation === 'landscape' ? size.width : size.height
+
+      const pdf = new jsPDF(orientation, 'mm', pageSize)
+
+      let currentY = 10
+
+      // Add Report Title
+      pdf.setFontSize(16)
+      pdf.setFont(undefined, 'bold')
+      pdf.text('Report', 10, currentY)
+      currentY += 10
+
+      // Summary - capture only content area
+      pdf.setFontSize(10)
+      pdf.setFont(undefined, 'bold')
+      pdf.text('• Summary', 10, currentY)
+      currentY += 5
+
+      const summaryContent = document.querySelector('.summary-section .p-4:not(.border-b)')
+      if (summaryContent) {
+        // Draw simple box instead of rich text
+        const boxHeight = 30
+        pdf.setDrawColor(200)
+        pdf.setFillColor(250, 250, 250)
+        pdf.rect(10, currentY, pdfWidth - 20, boxHeight, 'FD')
+
+        // Add summary text (plain)
+        pdf.setFontSize(9)
+        pdf.setFont(undefined, 'normal')
+        const lines = pdf.splitTextToSize(summaryContent.textContent || summaryContent.innerText || '', pdfWidth - 30)
+        pdf.text(lines.slice(0, 4), 15, currentY + 5)
+        currentY += boxHeight + 10
+      }
+
+      // Gantt - capture legend + table (no title header)
+      pdf.setFontSize(10)
+      pdf.setFont(undefined, 'bold')
+      pdf.text('• Gantt', 10, currentY)
+      currentY += 5
+
+      // Get legend and table container (exclude title)
+      const ganttSection = document.querySelector('.gantt-section')
+      if (ganttSection) {
+        // Temporarily hide title
+        const titleElement = ganttSection.querySelector('.p-4.border-b')
+        const originalDisplay = titleElement ? titleElement.style.display : ''
+        if (titleElement) titleElement.style.display = 'none'
+
+        // Capture
+        const ganttCanvas = await html2canvas(ganttSection, {
+          scale: 2,
+          width: ganttSection.scrollWidth,
+          windowWidth: ganttSection.scrollWidth
+        })
+        const ganttImg = ganttCanvas.toDataURL('image/png')
+
+        // Restore title
+        if (titleElement) titleElement.style.display = originalDisplay
+
+        const availableHeight = pdfHeight - currentY - 10
+        let ganttWidth = pdfWidth - 20
+        let ganttHeight = (ganttCanvas.height * ganttWidth) / ganttCanvas.width
+
+        if (fitToPage) {
+          if (ganttHeight > availableHeight) {
+            ganttHeight = availableHeight
+            ganttWidth = (ganttCanvas.width * ganttHeight) / ganttCanvas.height
+          }
+          // Ensure full width
+          if (ganttWidth < pdfWidth - 20) {
+            const scale = (pdfWidth - 20) / ganttWidth
+            ganttWidth = pdfWidth - 20
+            ganttHeight = ganttHeight * scale
+          }
+        }
+
+        pdf.addImage(ganttImg, 'PNG', 10, currentY, ganttWidth, ganttHeight)
+      }
+
+      pdf.save(`flexiblegantt-${new Date().toISOString().split('T')[0]}.pdf`)
+      alert('PDF 생성 완료!')
+    } catch (err) {
+      console.error('PDF Error:', err)
+      alert('PDF 생성 중 오류: ' + err.message)
+    }
+  }
+
+  // Export current state as JSON
+  const handleExportJSON = () => {
+    const exportData = {
+      version: '1.0',
+      exportDate: new Date().toISOString(),
+      summary: summaryContent,
+      timeline: {
+        startYear,
+        endYear,
+        showQuarters,
+        showMonths,
+        dateFormat
+      },
+      structure: structureRows,
+      attributes: taskConfig,
+      taskShapes,
+      tasks
+    }
+
+    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `flexiblegantt-${new Date().toISOString().split('T')[0]}.json`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
+  // Import JSON file
+  const handleImportJSON = (e) => {
+    const file = e.target.files[0]
+    if (!file) return
+
+    const reader = new FileReader()
+    reader.onload = (event) => {
+      try {
+        const data = JSON.parse(event.target.result)
+
+        // Restore all settings
+        if (data.summary) setSummaryContent(data.summary)
+        if (data.timeline) {
+          setStartYear(data.timeline.startYear)
+          setEndYear(data.timeline.endYear)
+          setShowQuarters(data.timeline.showQuarters)
+          setShowMonths(data.timeline.showMonths)
+          setDateFormat(data.timeline.dateFormat || 'YYYY-MM-DD')
+        }
+        if (data.structure) setStructureRows(data.structure)
+        if (data.attributes) setTaskConfig(data.attributes)
+        if (data.taskShapes) setTaskShapes(data.taskShapes)
+        if (data.tasks) setTasks(data.tasks)
+
+        alert('설정을 성공적으로 불러왔습니다!')
+      } catch (err) {
+        alert('파일을 읽는 중 오류가 발생했습니다: ' + err.message)
+      }
+    }
+    reader.readAsText(file)
+
+    // Reset input
+    e.target.value = ''
+  }
+
   const allRows = generateAllRows(tasks, structureRows[0].depths)
   const numDepths = structureRows[0].depths.length
 
@@ -349,14 +557,42 @@ function App() {
       className="min-h-screen bg-white"
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
+      onClick={handleCloseContextMenu}
     >
       {/* Header */}
       <header className="border-b border-gray-300 p-6">
-        <div className="max-w-full mx-auto">
-          <p className="text-sm text-gray-500 mb-2">Report</p>
-          <h1 className="text-3xl font-semibold text-gray-800">
-            FlexibleGantt Report
-          </h1>
+        <div className="max-w-full mx-auto flex justify-between items-center">
+          <div>
+            <p className="text-sm text-gray-500 mb-2">Report</p>
+            <h1 className="text-3xl font-semibold text-gray-800">
+              FlexibleGantt Report
+            </h1>
+          </div>
+
+          {/* Export/Import Buttons */}
+          <div className="flex gap-2">
+            <button
+              onClick={() => setShowPDFModal(true)}
+              className="px-4 py-2 bg-red-600 text-white text-sm rounded hover:bg-red-700 flex items-center gap-2"
+            >
+              📄 Export PDF
+            </button>
+            <button
+              onClick={handleExportJSON}
+              className="px-4 py-2 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 flex items-center gap-2"
+            >
+              📥 Export JSON
+            </button>
+            <label className="px-4 py-2 bg-green-600 text-white text-sm rounded hover:bg-green-700 cursor-pointer flex items-center gap-2">
+              📤 Import JSON
+              <input
+                type="file"
+                accept=".json"
+                onChange={handleImportJSON}
+                className="hidden"
+              />
+            </label>
+          </div>
         </div>
       </header>
 
@@ -364,7 +600,7 @@ function App() {
       <main className="max-w-full mx-auto p-6">
 
         {/* Summary Section - Rich Text Editor */}
-        <section className="mb-8 bg-white border border-gray-300 rounded-lg overflow-hidden">
+        <section className="summary-section mb-8 bg-white border border-gray-300 rounded-lg overflow-hidden">
           <div className="p-4 border-b border-gray-300 bg-gray-100">
             <h2 className="text-lg font-semibold text-gray-800">Summary</h2>
           </div>
@@ -520,9 +756,109 @@ function App() {
         </section>
 
         {/* Gantt Chart Section */}
-        <section className="bg-white border border-gray-400 rounded-lg overflow-hidden">
+        <section className="gantt-section bg-white border border-gray-400 rounded-lg overflow-hidden">
           <div className="p-4 border-b border-gray-400 bg-gray-100">
             <h2 className="text-lg font-semibold text-gray-800">Gantt Chart</h2>
+          </div>
+
+          {/* Legend */}
+          <div className="p-3 border-b border-gray-300 bg-gray-50">
+            <div className="flex justify-end">
+              <div className="border-2 border-dashed border-gray-400 rounded-lg p-3 bg-white">
+                <div className="flex items-center gap-6">
+                  <span className="text-xs font-semibold text-gray-600">범례:</span>
+
+                  {/* Gantt Bar - show actual attributes */}
+                  <div className="flex items-center gap-2">
+                    <div className="relative">
+                      <div
+                        className="border border-gray-400 relative"
+                        style={{
+                          width: '80px',
+                          height: '32px',
+                          backgroundColor: '#93C5FD',
+                          clipPath: 'polygon(0 0, 85% 0, 100% 50%, 85% 100%, 0 100%)'
+                        }}
+                      >
+                        {/* Show actual gantt attributes */}
+                        {taskConfig.ganttAttributes.slice(0, 3).map((attr, idx) => (
+                          <div key={attr} className="absolute bg-white border border-gray-400 px-1 rounded" style={{
+                            left: '8%',
+                            top: `${25 + idx * 30}%`,
+                            fontSize: '6px',
+                            transform: 'translateY(-50%)'
+                          }}>
+                            {availableAttributes.find(a => a.value === attr)?.label.slice(0, 4)}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Circle - show actual shape attributes */}
+                  <div className="flex items-center gap-1">
+                    <div
+                      className="border border-gray-400 flex items-center justify-center"
+                      style={{
+                        width: '28px',
+                        height: '28px',
+                        backgroundColor: '#93C5FD',
+                        clipPath: 'circle(50% at 50% 50%)',
+                        fontSize: '6px'
+                      }}
+                    >
+                      {taskConfig.shapeAttributes[0] ? '①' : ''}
+                    </div>
+                    <div className="flex flex-col gap-1" style={{ fontSize: '6px' }}>
+                      {taskConfig.shapeAttributes.slice(1, 4).map((attr, idx) => (
+                        <div key={attr}>{availableAttributes.find(a => a.value === attr)?.label.slice(0, 4)}</div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Rectangle - show actual shape attributes */}
+                  <div className="flex items-center gap-1">
+                    <div
+                      className="border border-gray-400 flex items-center justify-center"
+                      style={{
+                        width: '28px',
+                        height: '28px',
+                        backgroundColor: '#93C5FD',
+                        fontSize: '6px'
+                      }}
+                    >
+                      {taskConfig.shapeAttributes[0] ? '①' : ''}
+                    </div>
+                    <div className="flex flex-col gap-1" style={{ fontSize: '6px' }}>
+                      {taskConfig.shapeAttributes.slice(1, 4).map((attr, idx) => (
+                        <div key={attr}>{availableAttributes.find(a => a.value === attr)?.label.slice(0, 4)}</div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Triangle - show actual shape attributes */}
+                  <div className="flex items-center gap-1">
+                    <div
+                      className="border border-gray-400 flex items-center justify-center"
+                      style={{
+                        width: '28px',
+                        height: '28px',
+                        backgroundColor: '#93C5FD',
+                        clipPath: 'polygon(50% 0%, 0% 100%, 100% 100%)',
+                        fontSize: '6px'
+                      }}
+                    >
+                      {taskConfig.shapeAttributes[0] ? '①' : ''}
+                    </div>
+                    <div className="flex flex-col gap-1" style={{ fontSize: '6px' }}>
+                      {taskConfig.shapeAttributes.slice(1, 4).map((attr, idx) => (
+                        <div key={attr}>{availableAttributes.find(a => a.value === attr)?.label.slice(0, 4)}</div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
 
           <div className="overflow-x-auto">
@@ -544,12 +880,40 @@ function App() {
                 dragState={dragState}
                 taskConfig={taskConfig}
                 dateFormat={dateFormat}
+                getTaskShape={getTaskShape}
+                handleTaskRightClick={handleTaskRightClick}
               />
             )}
           </div>
         </section>
 
       </main>
+
+      {/* PDF Export Modal */}
+      <PDFExportModal
+        isOpen={showPDFModal}
+        onClose={() => setShowPDFModal(false)}
+        onExport={handleExportPDF}
+      />
+
+      {/* Context Menu */}
+      {contextMenu && (
+        <div
+          className="fixed bg-white border border-gray-400 rounded shadow-lg py-1 z-50"
+          style={{ left: contextMenu.x, top: contextMenu.y }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          {['gantt', 'circle', 'rectangle', 'triangle'].map(shape => (
+            <button
+              key={shape}
+              onClick={() => handleChangeTaskShape(contextMenu.taskId, shape)}
+              className="block w-full text-left px-4 py-2 text-sm hover:bg-gray-100"
+            >
+              {shape === 'gantt' ? '▶ Gantt Bar' : shape === 'circle' ? '● Circle' : shape === 'rectangle' ? '■ Rectangle' : '▲ Triangle'}
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* Footer */}
       <footer className="mt-12 py-6 border-t border-gray-300">

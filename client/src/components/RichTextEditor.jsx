@@ -4,6 +4,11 @@ import { useState, useEffect } from 'react'
 function RichTextEditor({ value, onChange }) {
   const [content, setContent] = useState(value || '')
 
+  // Update content when value prop changes (for Import)
+  useEffect(() => {
+    setContent(value || '')
+  }, [value])
+
   const handleChange = (e) => {
     const newValue = e.target.value
     setContent(newValue)

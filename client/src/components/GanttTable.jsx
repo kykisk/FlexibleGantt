@@ -1,4 +1,4 @@
-function GanttTable({ allRows, years, showQuarters, showMonths, numDepths, getTaskPosition, handleTaskMouseDown, dragState, taskConfig, dateFormat }) {
+function GanttTable({ allRows, years, showQuarters, showMonths, numDepths, getTaskPosition, handleTaskMouseDown, dragState, taskConfig, dateFormat, getTaskShape, handleTaskRightClick }) {
   const quarters = ['Q1', 'Q2', 'Q3', 'Q4']
   const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 
@@ -155,10 +155,11 @@ function GanttTable({ allRows, years, showQuarters, showMonths, numDepths, getTa
                     const topPosition = task.lane * laneHeight + 26 // Increased to make room for date labels above
                     const isActive = dragState.taskId === task.id
 
-                    // For non-gantt shapes, use fixed size
-                    const isGantt = taskConfig?.shape === 'gantt'
-                    const shapeWidth = isGantt ? position.width : '16px'
-                    const shapeHeight = isGantt ? `${laneHeight - 8}px` : '16px'
+                    // Get individual task shape (or default)
+                    const taskShape = getTaskShape(task.id)
+                    const isGantt = taskShape === 'gantt'
+                    const shapeWidth = isGantt ? position.width : '52px'
+                    const shapeHeight = isGantt ? `${laneHeight - 8}px` : '52px'
 
                     return (
                       <>
@@ -175,7 +176,7 @@ function GanttTable({ allRows, years, showQuarters, showMonths, numDepths, getTa
                                 zIndex: 25
                               }}
                             >
-                              <div className="bg-white border border-gray-300 px-1 py-0.5 rounded" style={{ fontSize: '7px', color: '#374151', whiteSpace: 'nowrap' }}>
+                              <div className="bg-white border border-gray-400 px-1 rounded" style={{ fontSize: '7px', color: '#374151', whiteSpace: 'nowrap', paddingTop: '1px', paddingBottom: '1px' }}>
                                 {formatDate(task.startDate)}
                               </div>
                             </div>
@@ -193,7 +194,7 @@ function GanttTable({ allRows, years, showQuarters, showMonths, numDepths, getTa
                                 justifyContent: 'flex-end'
                               }}
                             >
-                              <div className="bg-white border border-gray-300 px-1 py-0.5 rounded" style={{ fontSize: '7px', color: '#374151', whiteSpace: 'nowrap' }}>
+                              <div className="bg-white border border-gray-400 px-1 rounded" style={{ fontSize: '7px', color: '#374151', whiteSpace: 'nowrap', paddingTop: '1px', paddingBottom: '1px' }}>
                                 {formatDate(task.endDate)}
                               </div>
                             </div>
@@ -213,20 +214,21 @@ function GanttTable({ allRows, years, showQuarters, showMonths, numDepths, getTa
                             height: shapeHeight,
                             backgroundColor: taskConfig?.color || '#93C5FD',
                             borderColor: taskConfig?.color || '#3B82F6',
-                            clipPath: taskConfig?.shape === 'gantt'
+                            clipPath: taskShape === 'gantt'
                               ? 'polygon(0 0, 85% 0, 100% 50%, 85% 100%, 0 100%)'
-                              : taskConfig?.shape === 'circle'
+                              : taskShape === 'circle'
                               ? 'circle(50% at 50% 50%)'
-                              : taskConfig?.shape === 'triangle'
+                              : taskShape === 'triangle'
                               ? 'polygon(50% 0%, 0% 100%, 100% 100%)'
                               : 'none',
                             zIndex: isActive ? 20 : 10
                           }}
                           onMouseDown={(e) => handleTaskMouseDown(e, task, 'move')}
-                          title={`${row.columnValues.join(' - ')} | ${task.process} | ${new Date(task.startDate).toLocaleDateString()} ~ ${new Date(task.endDate).toLocaleDateString()}\n\nDrag to move${taskConfig?.shape === 'gantt' ? ' | Drag edges to resize' : ''}`}
+                          onContextMenu={(e) => handleTaskRightClick(e, task.id)}
+                          title={`${row.columnValues.join(' - ')} | ${task.process} | ${new Date(task.startDate).toLocaleDateString()} ~ ${new Date(task.endDate).toLocaleDateString()}\n\nDrag to move | Right click to change shape`}
                         >
                           {/* Resize handles - only for gantt shape */}
-                          {taskConfig?.shape === 'gantt' && (
+                          {taskShape === 'gantt' && (
                             <>
                               {/* Left resize handle */}
                               <div
@@ -251,36 +253,83 @@ function GanttTable({ allRows, years, showQuarters, showMonths, numDepths, getTa
                           )}
                         </div>
 
-                        {/* Attribute Labels - Outside Task Bar, not clipped */}
-                        {taskConfig?.shape === 'gantt' && taskConfig.selectedAttributes.map((attrKey, attrIdx) => {
-                          const labelPos = taskConfig.labelPositions[attrKey] || { x: 50, y: 35 + attrIdx * 15 }
-                          const attrValue = task[attrKey]
+                        {/* Attribute Labels */}
+                        {taskShape === 'gantt' ? (
+                          // Gantt Bar: draggable positioned labels
+                          taskConfig.ganttAttributes.map((attrKey, attrIdx) => {
+                            const labelPos = taskConfig.ganttLabelPositions[attrKey] || { x: 50, y: 35 + attrIdx * 15 }
+                            const attrValue = task[attrKey]
 
-                          // Calculate position relative to timeline cell, not just task bar
-                          const barLeftPercent = parseFloat(position.left)  // e.g., 5
-                          const barWidthPercent = parseFloat(position.width)  // e.g., 10
+                            const barLeftPercent = parseFloat(position.left)
+                            const barWidthPercent = parseFloat(position.width)
+                            const labelLeftPercent = barLeftPercent + (barWidthPercent * labelPos.x / 100)
+                            const labelTopPx = topPosition + ((parseFloat(shapeHeight) * labelPos.y / 100))
 
-                          // Label position can go beyond 100% (outside bar)
-                          const labelLeftPercent = barLeftPercent + (barWidthPercent * labelPos.x / 100)
-                          const labelTopPx = topPosition + ((parseFloat(shapeHeight) * labelPos.y / 100))
-
-                          return (
-                            <div
-                              key={`${task.id}-${attrKey}`}
-                              className="absolute pointer-events-none"
-                              style={{
-                                left: `${labelLeftPercent}%`,
-                                top: `${labelTopPx}px`,
-                                transform: 'translate(-50%, -50%)',
-                                zIndex: 30
-                              }}
-                            >
-                              <div className="bg-white bg-opacity-90 px-1 py-0.5 rounded shadow-sm" style={{ fontSize: '8px', color: '#374151', whiteSpace: 'nowrap' }}>
-                                {attrValue}
+                            return (
+                              <div
+                                key={`${task.id}-${attrKey}`}
+                                className="absolute pointer-events-none"
+                                style={{
+                                  left: `${labelLeftPercent}%`,
+                                  top: `${labelTopPx}px`,
+                                  transform: 'translate(-50%, -50%)',
+                                  zIndex: 30
+                                }}
+                              >
+                                <div className="bg-white bg-opacity-90 border border-gray-400 px-1 rounded shadow-sm" style={{ fontSize: '8px', color: '#374151', whiteSpace: 'nowrap', paddingTop: '1px', paddingBottom: '1px' }}>
+                                  {attrValue}
+                                </div>
                               </div>
-                            </div>
-                          )
-                        })}
+                            )
+                          })
+                        ) : (
+                          // Other shapes: fixed positions (max 4 attributes)
+                          <>
+                            {/* 1st attribute - inside shape, center */}
+                            {taskConfig.shapeAttributes[0] && (
+                              <div
+                                key={`${task.id}-attr-0`}
+                                className="absolute pointer-events-none flex items-center justify-center"
+                                style={{
+                                  left: position.left,
+                                  width: shapeWidth,
+                                  top: `${topPosition}px`,
+                                  height: shapeHeight,
+                                  zIndex: 30
+                                }}
+                              >
+                                <div className="text-gray-800" style={{ fontSize: '9px', whiteSpace: 'nowrap' }}>
+                                  {task[taskConfig.shapeAttributes[0]]}
+                                </div>
+                              </div>
+                            )}
+
+                            {/* 2nd-4th attributes - right side, no boxes, within shape height */}
+                            {taskConfig.shapeAttributes.slice(1, 4).map((attrKey, idx) => {
+                              const attrValue = task[attrKey]
+                              // Distribute 3 attributes evenly within shape height (52px)
+                              const shapeHeightPx = 52
+                              const spacing = shapeHeightPx / 4 // Divide into 4 parts for 3 items
+                              const topOffset = spacing * (idx + 1) // Start from 1/4, 2/4, 3/4
+
+                              return (
+                                <div
+                                  key={`${task.id}-${attrKey}`}
+                                  className="absolute pointer-events-none"
+                                  style={{
+                                    left: `calc(${position.left} + ${shapeWidth} + 8px)`,
+                                    top: `${topPosition + topOffset}px`,
+                                    zIndex: 30
+                                  }}
+                                >
+                                  <div className="text-gray-800" style={{ fontSize: '8px', whiteSpace: 'nowrap' }}>
+                                    {attrValue}
+                                  </div>
+                                </div>
+                              )
+                            })}
+                          </>
+                        )}
                       </>
                     )
                   })}
