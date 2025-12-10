@@ -36,6 +36,7 @@ export const importJSON = (file, callbacks) => {
         if (data.attributes && callbacks.setAttributes) callbacks.setAttributes(data.attributes)
         if (data.taskShapes && callbacks.setTaskShapes) callbacks.setTaskShapes(data.taskShapes)
         if (data.tasks && callbacks.setTasks) callbacks.setTasks(data.tasks)
+        if (data.memos && callbacks.setMemos) callbacks.setMemos(data) // 메모 복원
 
         resolve(data)
       } catch (err) {

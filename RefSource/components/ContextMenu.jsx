@@ -1,4 +1,4 @@
-function ContextMenu({ contextMenu, onClose, onSelectShape, onSelectRowShapes }) {
+function ContextMenu({ contextMenu, onClose, onSelectShape, onSelectRowShapes, onAddMemo }) {
   if (!contextMenu) return null
 
   const shapes = [
@@ -9,6 +9,7 @@ function ContextMenu({ contextMenu, onClose, onSelectShape, onSelectRowShapes })
   ]
 
   const isRowMenu = contextMenu.type === 'row'
+  const isGanttArea = contextMenu.type === 'gantt-area'
   const title = isRowMenu ? 'Row 전체 도형 변경' : '도형 변경'
 
   return (
@@ -22,24 +23,42 @@ function ContextMenu({ contextMenu, onClose, onSelectShape, onSelectRowShapes })
           {title}
         </div>
       )}
+
+      {/* 도형 변경 메뉴 (Row 또는 Task) */}
+      {!isGanttArea && (
+        <div className="py-1">
+          {shapes.map(shape => (
+            <button
+              key={shape.value}
+              onClick={() => {
+                if (isRowMenu) {
+                  const taskIds = contextMenu.rowTasks.map(t => t.id)
+                  onSelectRowShapes(taskIds, shape.value)
+                } else {
+                  onSelectShape(contextMenu.taskId, shape.value)
+                }
+                onClose()
+              }}
+              className="block w-full text-left px-4 py-2 text-sm hover:bg-gray-100"
+            >
+              {shape.label}
+            </button>
+          ))}
+          <div className="border-t border-gray-300 my-1"></div>
+        </div>
+      )}
+
+      {/* 메모 추가 (모든 메뉴에 표시) */}
       <div className="py-1">
-        {shapes.map(shape => (
-          <button
-            key={shape.value}
-            onClick={() => {
-              if (isRowMenu) {
-                const taskIds = contextMenu.rowTasks.map(t => t.id)
-                onSelectRowShapes(taskIds, shape.value)
-              } else {
-                onSelectShape(contextMenu.taskId, shape.value)
-              }
-              onClose()
-            }}
-            className="block w-full text-left px-4 py-2 text-sm hover:bg-gray-100"
-          >
-            {shape.label}
-          </button>
-        ))}
+        <button
+          onClick={() => {
+            onAddMemo(contextMenu.relativeX || 100, contextMenu.relativeY || 100)
+            onClose()
+          }}
+          className="block w-full text-left px-4 py-2 text-sm hover:bg-gray-100"
+        >
+          📝 메모 추가
+        </button>
       </div>
     </div>
   )

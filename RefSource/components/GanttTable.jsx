@@ -1,3 +1,5 @@
+import React from 'react'
+
 function GanttTable({ allRows, years, showQuarters, showMonths, numDepths, getTaskPosition, handleTaskMouseDown, dragState, taskConfig, dateFormat, getTaskShape, handleTaskRightClick, handleRowRightClick }) {
   const quarters = ['Q1', 'Q2', 'Q3', 'Q4']
   const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
@@ -164,7 +166,7 @@ function GanttTable({ allRows, years, showQuarters, showMonths, numDepths, getTa
                     const shapeHeight = isGantt ? `${laneHeight - 8}px` : '52px'
 
                     return (
-                      <>
+                      <React.Fragment key={task.id}>
                         {/* Date Labels - Outside the bar, above (Gantt only) */}
                         {isGantt && (
                           <>
@@ -332,7 +334,7 @@ function GanttTable({ allRows, years, showQuarters, showMonths, numDepths, getTa
                             })}
                           </>
                         )}
-                      </>
+                      </React.Fragment>
                     )
                   })}
                 </td>

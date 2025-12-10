@@ -1,6 +1,25 @@
 # RefSource 변경 이력
 
-## 최신 업데이트 (2025-12-08)
+## 최신 업데이트 (2025-12-09)
+
+### 메모 기능 추가
+- Gantt 영역 우클릭으로 포스트잇 스타일 메모 추가
+- 메모 드래그/리사이즈/편집/삭제 기능
+- JSON Export/Import 시 메모 포함
+- 최소 크기: 80px × 60px
+
+### 버그 수정
+- React key prop 에러 수정 (GanttTable.jsx)
+- Context menu 이벤트 버블링 수정
+- Task/Row 우클릭 시 도형 변경 메뉴 정상 표시
+
+### 추가 파일
+- `components/Memo.jsx` (메모 컴포넌트)
+- `docs/MEMO_FEATURE.md` (메모 기능 가이드)
+
+---
+
+## 이전 업데이트 (2025-12-08)
 
 ### 버그 수정
 - PDF Export 시 `pageSizes is not defined` 오류 수정
