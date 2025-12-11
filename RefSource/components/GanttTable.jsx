@@ -1,6 +1,7 @@
 import React from 'react'
+import { isDarkColor } from '../constants/shapes'
 
-function GanttTable({ ganttByRow, years, showQuarters, showMonths, getTaskPosition, handleTaskMouseDown, dragState, taskConfig, dateFormat, getTaskShape, handleTaskRightClick, handleRowRightClick, structureRows }) {
+function GanttTable({ ganttByRow, years, showQuarters, showMonths, getTaskPosition, handleTaskMouseDown, dragState, taskConfig, dateFormat, getTaskShape, getTaskColor, handleTaskRightClick, handleRowRightClick, structureRows }) {
   const quarters = ['Q1', 'Q2', 'Q3', 'Q4']
   const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 
@@ -178,8 +179,9 @@ function GanttTable({ ganttByRow, years, showQuarters, showMonths, getTaskPositi
                     const topPosition = task.lane * laneHeight + 26 // Increased to make room for date labels above
                     const isActive = dragState.taskId === task.id
 
-                    // Get individual task shape (or default)
+                    // Get individual task shape and color (or default)
                     const taskShape = getTaskShape(task.id)
+                    const taskColor = getTaskColor(task.id)
                     const isGantt = taskShape === 'gantt'
 
                     // Calculate shape size and position based on type
@@ -255,8 +257,8 @@ function GanttTable({ ganttByRow, years, showQuarters, showMonths, getTaskPositi
                             width: shapeWidth,
                             top: `${topPosition}px`,
                             height: shapeHeight,
-                            backgroundColor: taskConfig?.color || '#93C5FD',
-                            borderColor: taskConfig?.color || '#3B82F6',
+                            backgroundColor: taskColor,
+                            borderColor: taskColor,
                             clipPath: taskShape === 'gantt'
                               ? 'polygon(0 0, 85% 0, 100% 50%, 85% 100%, 0 100%)'
                               : taskShape === 'circle'
@@ -341,7 +343,11 @@ function GanttTable({ ganttByRow, years, showQuarters, showMonths, getTaskPositi
                                   zIndex: 30
                                 }}
                               >
-                                <div className="text-gray-800" style={{ fontSize: '9px', whiteSpace: 'nowrap' }}>
+                                <div style={{
+                                  fontSize: '9px',
+                                  whiteSpace: 'nowrap',
+                                  color: isDarkColor(taskColor) ? '#ffffff' : '#1f2937'
+                                }}>
                                   {task[taskConfig.circleAttributes[0]]}
                                 </div>
                               </div>
@@ -396,7 +402,11 @@ function GanttTable({ ganttByRow, years, showQuarters, showMonths, getTaskPositi
                                   zIndex: 30
                                 }}
                               >
-                                <div className="text-gray-800" style={{ fontSize: '7px', whiteSpace: 'nowrap' }}>
+                                <div style={{
+                                  fontSize: '7px',
+                                  whiteSpace: 'nowrap',
+                                  color: isDarkColor(taskColor) ? '#ffffff' : '#1f2937'
+                                }}>
                                   {attrValue}
                                 </div>
                               </div>

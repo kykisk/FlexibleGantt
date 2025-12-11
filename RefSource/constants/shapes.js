@@ -31,6 +31,7 @@ export const rectanglePositions = [
  * Teamcenter 디자인 규정에 맞춰 색상을 변경할 수 있습니다.
  */
 export const colorOptions = [
+  { value: '#93C5FD', label: '하늘색' },
   { value: '#000000', label: '검은색' },
   { value: '#808080', label: '회색' },
   { value: '#3B82F6', label: '파란색' },
@@ -40,6 +41,18 @@ export const colorOptions = [
   { value: '#F97316', label: '주황색' },
   { value: '#A855F7', label: '보라색' }
 ]
+
+/**
+ * 색상이 어두운지 판단 (텍스트 색상 결정용)
+ */
+export const isDarkColor = (hexColor) => {
+  const hex = hexColor.replace('#', '')
+  const r = parseInt(hex.substr(0, 2), 16)
+  const g = parseInt(hex.substr(2, 2), 16)
+  const b = parseInt(hex.substr(4, 2), 16)
+  const brightness = (r * 299 + g * 587 + b * 114) / 1000
+  return brightness < 128
+}
 
 /**
  * 날짜 포맷 옵션

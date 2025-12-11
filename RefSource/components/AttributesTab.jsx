@@ -26,6 +26,7 @@ function AttributesTab({ taskConfig, setTaskConfig }) {
   ]
 
   const colorOptions = [
+    { value: '#93C5FD', label: '기본색' },
     { value: '#000000', label: '검은색' },
     { value: '#808080', label: '회색' },
     { value: '#3B82F6', label: '파란색' },
@@ -195,8 +196,8 @@ function AttributesTab({ taskConfig, setTaskConfig }) {
             </div>
           </div>
 
-          {/* Shape & Color - Compact LOV */}
-          <div className="grid grid-cols-2 gap-4">
+          {/* Shape & Color - Vertical Compact */}
+          <div className="space-y-2">
             {/* Shape LOV */}
             <div>
               <label className="block text-xs font-semibold text-gray-800 mb-1">
@@ -205,7 +206,8 @@ function AttributesTab({ taskConfig, setTaskConfig }) {
               <select
                 value={taskConfig.shape}
                 onChange={(e) => setTaskConfig({ ...taskConfig, shape: e.target.value })}
-                className="w-full px-2 py-1 text-sm border border-gray-300 rounded"
+                className="px-2 py-1 text-xs border border-gray-300 rounded"
+                style={{ width: '140px' }}
               >
                 {shapeOptions.map(shape => (
                   <option key={shape.value} value={shape.value}>
@@ -223,8 +225,8 @@ function AttributesTab({ taskConfig, setTaskConfig }) {
               <select
                 value={taskConfig.color}
                 onChange={(e) => setTaskConfig({ ...taskConfig, color: e.target.value })}
-                className="w-full px-2 py-1 text-sm border border-gray-300 rounded"
-                style={{ backgroundColor: taskConfig.color, color: '#fff' }}
+                className="px-2 py-1 text-xs border border-gray-300 rounded"
+                style={{ width: '140px', backgroundColor: taskConfig.color, color: '#fff' }}
               >
                 {colorOptions.map(color => (
                   <option key={color.value} value={color.value} style={{ backgroundColor: color.value, color: '#fff' }}>
