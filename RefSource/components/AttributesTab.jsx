@@ -22,8 +22,7 @@ function AttributesTab({ taskConfig, setTaskConfig }) {
   const shapeOptions = [
     { value: 'gantt', label: 'Gantt Bar', icon: '▶' },
     { value: 'circle', label: 'Circle', icon: '●' },
-    { value: 'rectangle', label: 'Rectangle', icon: '■' },
-    { value: 'triangle', label: 'Triangle', icon: '▲' }
+    { value: 'rectangle', label: 'Rectangle', icon: '■' }
   ]
 
   const colorOptions = [
@@ -42,18 +41,39 @@ function AttributesTab({ taskConfig, setTaskConfig }) {
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 })
   const [tempPosition, setTempPosition] = useState(null) // Temporary position while dragging
 
+  // 현재 도형의 속성 가져오기
+  const getCurrentAttrs = () => {
+    const { shape } = taskConfig
+    if (shape === 'gantt') return taskConfig.ganttAttributes
+    if (shape === 'circle') return taskConfig.circleAttributes
+    if (shape === 'rectangle') return taskConfig.rectangleAttributes
+    return []
+  }
+
+  // 현재 도형의 최대 개수
+  const getMaxCount = () => {
+    const { shape } = taskConfig
+    if (shape === 'gantt') return 8
+    if (shape === 'circle') return 4
+    if (shape === 'rectangle') return 5
+    return 4
+  }
+
   const toggleAttribute = (attrValue) => {
-    const isGantt = taskConfig.shape === 'gantt'
-    const currentAttr = isGantt ? 'ganttAttributes' : 'shapeAttributes'
-    const selectedAttrs = taskConfig[currentAttr]
-    const maxCount = isGantt ? 8 : 4
+    const { shape } = taskConfig
+    const currentAttrKey = shape === 'gantt' ? 'ganttAttributes'
+      : shape === 'circle' ? 'circleAttributes'
+      : 'rectangleAttributes'
+
+    const selectedAttrs = taskConfig[currentAttrKey]
+    const maxCount = getMaxCount()
 
     const isSelected = selectedAttrs.includes(attrValue)
 
     if (isSelected) {
       setTaskConfig({
         ...taskConfig,
-        [currentAttr]: selectedAttrs.filter(a => a !== attrValue)
+        [currentAttrKey]: selectedAttrs.filter(a => a !== attrValue)
       })
     } else {
       if (selectedAttrs.length >= maxCount) {
@@ -62,7 +82,7 @@ function AttributesTab({ taskConfig, setTaskConfig }) {
       }
       setTaskConfig({
         ...taskConfig,
-        [currentAttr]: [...selectedAttrs, attrValue]
+        [currentAttrKey]: [...selectedAttrs, attrValue]
       })
     }
   }
@@ -150,11 +170,11 @@ function AttributesTab({ taskConfig, setTaskConfig }) {
           {/* Attribute Selection - Compact grid */}
           <div className="mb-4">
             <h3 className="text-sm font-semibold text-gray-800 mb-2">
-              Attributes ({(taskConfig.shape === 'gantt' ? taskConfig.ganttAttributes : taskConfig.shapeAttributes).length}/{taskConfig.shape === 'gantt' ? 8 : 4})
+              Attributes ({getCurrentAttrs().length}/{getMaxCount()})
             </h3>
             <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
               {availableAttributes.map((attr) => {
-                const currentAttrs = taskConfig.shape === 'gantt' ? taskConfig.ganttAttributes : taskConfig.shapeAttributes
+                const currentAttrs = getCurrentAttrs()
                 const attrIndex = currentAttrs.indexOf(attr.value)
 
                 return (
@@ -238,7 +258,7 @@ function AttributesTab({ taskConfig, setTaskConfig }) {
                 <div
                   className="shape-element relative border-2 cursor-pointer"
                   style={{
-                    width: taskConfig.shape === 'gantt' ? '240px' : '100px',
+                    width: taskConfig.shape === 'gantt' ? '240px' : taskConfig.shape === 'rectangle' ? '200px' : '100px',
                     height: taskConfig.shape === 'gantt' ? '120px' : '100px',
                     backgroundColor: taskConfig.color,
                     opacity: 0.8,
@@ -246,8 +266,6 @@ function AttributesTab({ taskConfig, setTaskConfig }) {
                       ? 'polygon(0 0, 85% 0, 100% 50%, 85% 100%, 0 100%)'
                       : taskConfig.shape === 'circle'
                       ? 'circle(50% at 50% 50%)'
-                      : taskConfig.shape === 'triangle'
-                      ? 'polygon(50% 0%, 0% 100%, 100% 100%)'
                       : 'none'
                   }}
                 >
@@ -285,8 +303,8 @@ function AttributesTab({ taskConfig, setTaskConfig }) {
                   )
                   })}
 
-                  {/* 1st attribute - inside shape, center, fixed */}
-                  {taskConfig.shape !== 'gantt' && taskConfig.shapeAttributes[0] && (
+                  {/* Circle - 1번 중앙, 2-4번 오른쪽 */}
+                  {taskConfig.shape === 'circle' && taskConfig.circleAttributes[0] && (
                     <div
                       className="absolute pointer-events-none"
                       style={{
@@ -297,20 +315,55 @@ function AttributesTab({ taskConfig, setTaskConfig }) {
                         zIndex: 10
                       }}
                     >
-                      <div className="bg-white border border-gray-400 px-1 py-0.5 rounded text-xs shadow-sm">
+                      <div className="bg-white border border-gray-400 px-1 py-0.5 rounded text-xs shadow-sm" style={{ maxWidth: '50px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                         <span className="inline-flex items-center justify-center w-3 h-3 rounded-full bg-blue-500 text-white mr-1" style={{ fontSize: '8px' }}>
                           1
                         </span>
-                        {availableAttributes.find(a => a.value === taskConfig.shapeAttributes[0])?.label}
+                        <span style={{ fontSize: '9px' }}>{availableAttributes.find(a => a.value === taskConfig.circleAttributes[0])?.label}</span>
                       </div>
                     </div>
                   )}
+
+                  {/* Rectangle - 5개 고정 위치 */}
+                  {taskConfig.shape === 'rectangle' && taskConfig.rectangleAttributes.map((attrValue, idx) => {
+                    const attr = availableAttributes.find(a => a.value === attrValue)
+                    // 고정 위치: 1중앙, 2좌상, 3우상, 4좌하, 5우하
+                    const positions = [
+                      { x: 50, y: 50 },  // 1
+                      { x: 20, y: 20 },  // 2
+                      { x: 80, y: 20 },  // 3
+                      { x: 20, y: 80 },  // 4
+                      { x: 80, y: 80 }   // 5
+                    ]
+                    const pos = positions[idx]
+
+                    return (
+                      <div
+                        key={attrValue}
+                        className="absolute pointer-events-none"
+                        style={{
+                          left: `${pos.x}%`,
+                          top: `${pos.y}%`,
+                          transform: 'translate(-50%, -50%)',
+                          fontSize: '10px',
+                          zIndex: 10
+                        }}
+                      >
+                        <div className="bg-white border border-gray-400 px-1 py-0.5 rounded text-xs shadow-sm" style={{ maxWidth: '60px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          <span className="inline-flex items-center justify-center w-3 h-3 rounded-full bg-blue-500 text-white mr-1" style={{ fontSize: '8px' }}>
+                            {idx + 1}
+                          </span>
+                          <span style={{ fontSize: '9px' }}>{attr?.label}</span>
+                        </div>
+                      </div>
+                    )
+                  })}
                 </div>
 
-                {/* 2nd-4th attributes - right side of shape, vertical stack */}
-                {taskConfig.shape !== 'gantt' && taskConfig.shapeAttributes.length > 1 && (
+                {/* Circle - 2-4번 오른쪽 */}
+                {taskConfig.shape === 'circle' && taskConfig.circleAttributes.length > 1 && (
                   <div className="ml-3 flex flex-col gap-2">
-                    {taskConfig.shapeAttributes.slice(1, 4).map((attrValue, idx) => {
+                    {taskConfig.circleAttributes.slice(1, 4).map((attrValue, idx) => {
                       const attr = availableAttributes.find(a => a.value === attrValue)
 
                       return (

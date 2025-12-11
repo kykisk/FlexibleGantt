@@ -1,8 +1,11 @@
 import React from 'react'
 
-function GanttTable({ allRows, years, showQuarters, showMonths, numDepths, getTaskPosition, handleTaskMouseDown, dragState, taskConfig, dateFormat, getTaskShape, handleTaskRightClick, handleRowRightClick }) {
+function GanttTable({ ganttByRow, years, showQuarters, showMonths, getTaskPosition, handleTaskMouseDown, dragState, taskConfig, dateFormat, getTaskShape, handleTaskRightClick, handleRowRightClick, structureRows }) {
   const quarters = ['Q1', 'Q2', 'Q3', 'Q4']
   const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+
+  // 모든 Row 중 최대 Depth 개수 사용 (헤더용)
+  const numDepths = Math.max(...ganttByRow.map(g => g.numDepths))
 
   // Format date based on selected format
   const formatDate = (dateStr) => {
@@ -49,6 +52,7 @@ function GanttTable({ allRows, years, showQuarters, showMonths, numDepths, getTa
   return (
     <div style={{ minWidth: '1200px' }}>
       <table className="w-full border-collapse">
+        {/* Header - 한 번만 렌더링 */}
         <thead>
           {/* Year row */}
           <tr>
@@ -111,31 +115,46 @@ function GanttTable({ allRows, years, showQuarters, showMonths, numDepths, getTa
           )}
         </thead>
 
+        {/* Body - 단일 tbody로 통합 */}
         <tbody>
-          {allRows.map((row, rowIdx) => {
-            const laneHeight = 60 // Increased for attribute labels
+          {ganttByRow.map(({ row: structureRow, filteredRows, numDepths: rowNumDepths }, ganttRowIndex) => (
+            <React.Fragment key={structureRow.id}>
+              {/* Row 데이터 */}
+              {filteredRows.map((row, rowIdx) => {
+                const laneHeight = 60
 
-            return (
-              <tr key={`row-${rowIdx}`} className="hover:bg-gray-50">
-                {/* Depth columns with nested rowspans */}
-                {row.columnValues.map((colValue, colIdx) => {
-                  const rowspan = row.rowspans && row.rowspans[colIdx]
+                return (
+                  <tr key={`${structureRow.id}-${rowIdx}`} className="hover:bg-gray-50">
+                    {/* Depth columns with nested rowspans */}
+                    {row.columnValues.map((colValue, colIdx) => {
+                      const rowspan = row.rowspans && row.rowspans[colIdx]
 
-                  // Skip if this cell was merged by previous row (rowspan === 0)
-                  if (rowspan === 0 || rowspan === undefined) return null
+                      // Skip if this cell was merged by previous row (rowspan === 0)
+                      if (rowspan === 0 || rowspan === undefined) return null
 
-                  return (
-                    <td
-                      key={colIdx}
-                      rowSpan={rowspan}
-                      className="bg-gray-200 border border-gray-400 px-4 py-3 text-center text-sm font-semibold text-gray-800 align-middle cursor-pointer hover:bg-gray-300"
-                      onContextMenu={(e) => handleRowRightClick(e, row.tasks)}
-                      title="Right-click to change all tasks in this row"
-                    >
-                      {colValue}
-                    </td>
-                  )
-                })}
+                      return (
+                        <td
+                          key={colIdx}
+                          rowSpan={rowspan}
+                          colSpan={1}
+                          className="bg-gray-200 border border-gray-400 px-4 py-3 text-center text-sm font-semibold text-gray-800 align-middle cursor-pointer hover:bg-gray-300"
+                          onContextMenu={(e) => handleRowRightClick(e, row.tasks)}
+                          title="Right-click to change all tasks in this row"
+                        >
+                          {colValue}
+                        </td>
+                      )
+                    })}
+
+                    {/* 부족한 Depth 컬럼 채우기 (첫 번째 Row 기준) */}
+                    {rowNumDepths < numDepths && row.columnValues.length === rowNumDepths && (
+                      Array.from({ length: numDepths - rowNumDepths }).map((_, idx) => (
+                        <td
+                          key={`empty-${idx}`}
+                          className="bg-gray-200 border border-gray-400"
+                        />
+                      ))
+                    )}
 
                 <td
                   colSpan={totalColumns}
@@ -162,8 +181,28 @@ function GanttTable({ allRows, years, showQuarters, showMonths, numDepths, getTa
                     // Get individual task shape (or default)
                     const taskShape = getTaskShape(task.id)
                     const isGantt = taskShape === 'gantt'
-                    const shapeWidth = isGantt ? position.width : '52px'
-                    const shapeHeight = isGantt ? `${laneHeight - 8}px` : '52px'
+
+                    // Calculate shape size and position based on type
+                    let shapeLeft = position.left
+                    let shapeWidth = '52px'
+                    let shapeHeight = '52px'
+
+                    if (isGantt) {
+                      shapeWidth = position.width
+                      shapeHeight = `${laneHeight - 8}px`
+                    } else if (taskShape === 'rectangle') {
+                      // Rectangle: 종료일에 오른쪽 맞춤, 넓이 100px
+                      shapeWidth = '100px'
+                      shapeHeight = '52px'
+                      const endPercent = parseFloat(position.left) + parseFloat(position.width)
+                      shapeLeft = `calc(${endPercent}% - 100px)`
+                    } else if (taskShape === 'circle') {
+                      // Circle: 종료일에 중심 맞춤
+                      shapeWidth = '52px'
+                      shapeHeight = '52px'
+                      const endPercent = parseFloat(position.left) + parseFloat(position.width)
+                      shapeLeft = `calc(${endPercent}% - 26px)` // 반지름만큼 빼기
+                    }
 
                     return (
                       <React.Fragment key={task.id}>
@@ -212,7 +251,7 @@ function GanttTable({ allRows, years, showQuarters, showMonths, numDepths, getTa
                             isActive ? 'opacity-70 shadow-lg' : 'cursor-move'
                           }`}
                           style={{
-                            left: position.left,
+                            left: shapeLeft,
                             width: shapeWidth,
                             top: `${topPosition}px`,
                             height: shapeHeight,
@@ -286,16 +325,16 @@ function GanttTable({ allRows, years, showQuarters, showMonths, numDepths, getTa
                               </div>
                             )
                           })
-                        ) : (
-                          // Other shapes: fixed positions (max 4 attributes)
+                        ) : taskShape === 'circle' ? (
+                          // Circle: 1번 중앙, 2-4번 오른쪽
                           <>
-                            {/* 1st attribute - inside shape, center */}
-                            {taskConfig.shapeAttributes[0] && (
+                            {/* 1번 - 중앙 */}
+                            {taskConfig.circleAttributes[0] && (
                               <div
-                                key={`${task.id}-attr-0`}
+                                key={`${task.id}-circle-0`}
                                 className="absolute pointer-events-none flex items-center justify-center"
                                 style={{
-                                  left: position.left,
+                                  left: shapeLeft,
                                   width: shapeWidth,
                                   top: `${topPosition}px`,
                                   height: shapeHeight,
@@ -303,25 +342,24 @@ function GanttTable({ allRows, years, showQuarters, showMonths, numDepths, getTa
                                 }}
                               >
                                 <div className="text-gray-800" style={{ fontSize: '9px', whiteSpace: 'nowrap' }}>
-                                  {task[taskConfig.shapeAttributes[0]]}
+                                  {task[taskConfig.circleAttributes[0]]}
                                 </div>
                               </div>
                             )}
 
-                            {/* 2nd-4th attributes - right side, no boxes, within shape height */}
-                            {taskConfig.shapeAttributes.slice(1, 4).map((attrKey, idx) => {
+                            {/* 2-4번 - 오른쪽 (Circle 위치 기준) */}
+                            {taskConfig.circleAttributes.slice(1, 4).map((attrKey, idx) => {
                               const attrValue = task[attrKey]
-                              // Distribute 3 attributes evenly within shape height (52px)
                               const shapeHeightPx = 52
-                              const spacing = shapeHeightPx / 4 // Divide into 4 parts for 3 items
-                              const topOffset = spacing * (idx + 1) // Start from 1/4, 2/4, 3/4
+                              const spacing = shapeHeightPx / 4
+                              const topOffset = spacing * (idx + 1)
 
                               return (
                                 <div
                                   key={`${task.id}-${attrKey}`}
                                   className="absolute pointer-events-none"
                                   style={{
-                                    left: `calc(${position.left} + ${shapeWidth} + 8px)`,
+                                    left: `calc(${shapeLeft} + 52px + 8px)`,
                                     top: `${topPosition + topOffset}px`,
                                     zIndex: 30
                                   }}
@@ -333,14 +371,47 @@ function GanttTable({ allRows, years, showQuarters, showMonths, numDepths, getTa
                               )
                             })}
                           </>
-                        )}
+                        ) : taskShape === 'rectangle' ? (
+                          // Rectangle: 5개 모두 도형 안 고정 위치
+                          taskConfig.rectangleAttributes.map((attrKey, idx) => {
+                            const attrValue = task[attrKey]
+                            // 고정 위치: 1중앙, 2좌상, 3우상, 4좌하, 5우하
+                            const positions = [
+                              { x: 50, y: 50 },
+                              { x: 20, y: 20 },
+                              { x: 80, y: 20 },
+                              { x: 20, y: 80 },
+                              { x: 80, y: 80 }
+                            ]
+                            const pos = positions[idx]
+
+                            return (
+                              <div
+                                key={`${task.id}-${attrKey}`}
+                                className="absolute pointer-events-none"
+                                style={{
+                                  left: `calc(${shapeLeft} + ${100 * pos.x / 100}px)`,
+                                  top: `${topPosition + (52 * pos.y / 100)}px`,
+                                  transform: 'translate(-50%, -50%)',
+                                  zIndex: 30
+                                }}
+                              >
+                                <div className="text-gray-800" style={{ fontSize: '7px', whiteSpace: 'nowrap' }}>
+                                  {attrValue}
+                                </div>
+                              </div>
+                            )
+                          })
+                        ) : null}
                       </React.Fragment>
                     )
                   })}
                 </td>
-              </tr>
-            )
-          })}
+                  </tr>
+                )
+              })}
+            </React.Fragment>
+          ))}
         </tbody>
       </table>
     </div>
