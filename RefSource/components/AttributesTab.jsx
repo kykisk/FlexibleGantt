@@ -235,6 +235,35 @@ function AttributesTab({ taskConfig, setTaskConfig }) {
                 ))}
               </select>
             </div>
+
+            {/* Font Size (Circle, Rectangle only) */}
+            {(taskConfig.shape === 'circle' || taskConfig.shape === 'rectangle') && (
+              <div>
+                <label className="block text-xs font-semibold text-gray-800 mb-1">
+                  Font Size
+                </label>
+                <select
+                  value={taskConfig.shape === 'circle' ? taskConfig.circleFontSize : taskConfig.rectangleFontSize}
+                  onChange={(e) => {
+                    const fontSize = Number(e.target.value)
+                    if (taskConfig.shape === 'circle') {
+                      setTaskConfig({ ...taskConfig, circleFontSize: fontSize })
+                    } else {
+                      setTaskConfig({ ...taskConfig, rectangleFontSize: fontSize })
+                    }
+                  }}
+                  className="px-2 py-1 text-xs border border-gray-300 rounded"
+                  style={{ width: '140px' }}
+                >
+                  <option value={6}>6px (아주 작게)</option>
+                  <option value={7}>7px (작게)</option>
+                  <option value={8}>8px (기본)</option>
+                  <option value={9}>9px (중간)</option>
+                  <option value={10}>10px (크게)</option>
+                  <option value={11}>11px (아주 크게)</option>
+                </select>
+              </div>
+            )}
           </div>
         </div>
 

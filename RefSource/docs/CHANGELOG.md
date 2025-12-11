@@ -1,6 +1,26 @@
 # RefSource 변경 이력
 
-## 최신 업데이트 (2025-12-09 v3)
+## 최신 업데이트 (2025-12-09 v4)
+
+### 폰트 크기 조정
+- Circle, Rectangle 도형에 폰트 크기 조정 기능 추가
+- Gantt Bar는 고정 8px 유지
+- circleFontSize: 기본 9px (6~11px 선택)
+- rectangleFontSize: 기본 7px (6~11px 선택)
+
+### Row 전체 색상 변경
+- Y축 Column 우클릭 → Row 전체 색상 변경
+- 해당 Row의 모든 Task 일괄 색상 적용
+- onSelectRowColors 함수 추가
+
+### 색상 자동 텍스트 대비
+- 어두운 배경 → 흰색 텍스트 자동 적용
+- isDarkColor() 함수로 밝기 계산
+- Circle, Rectangle 도형 내부 텍스트에 적용
+
+---
+
+## 이전 업데이트 (2025-12-09 v3)
 
 ### 개별 Task 색상 설정
 - 각 Task마다 독립적인 색상 지정 가능

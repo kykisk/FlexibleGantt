@@ -13,11 +13,20 @@
 const [taskShapes, setTaskShapes] = useState({})
 // { taskId: 'gantt' | 'circle' | 'rectangle' }
 
+const [taskColors, setTaskColors] = useState({})
+// { taskId: '#93C5FD' | '#000000' | ... }
+
 // 예시:
-{
+taskShapes = {
   '1': 'circle',
   '5': 'rectangle',
   '10': 'gantt'
+}
+
+taskColors = {
+  '1': '#EF4444',  // 빨간색
+  '5': '#22C55E',  // 녹색
+  '10': '#3B82F6'  // 파란색
 }
 ```
 

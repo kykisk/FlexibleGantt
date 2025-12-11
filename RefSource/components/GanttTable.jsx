@@ -321,7 +321,13 @@ function GanttTable({ ganttByRow, years, showQuarters, showMonths, getTaskPositi
                                   zIndex: 30
                                 }}
                               >
-                                <div className="bg-white bg-opacity-90 border border-gray-400 px-1 rounded shadow-sm" style={{ fontSize: '8px', color: '#374151', whiteSpace: 'nowrap', paddingTop: '1px', paddingBottom: '1px' }}>
+                                <div className="bg-white bg-opacity-90 border border-gray-400 px-1 rounded shadow-sm" style={{
+                                  fontSize: '8px',
+                                  color: '#374151',
+                                  whiteSpace: 'nowrap',
+                                  paddingTop: '1px',
+                                  paddingBottom: '1px'
+                                }}>
                                   {attrValue}
                                 </div>
                               </div>
@@ -344,7 +350,7 @@ function GanttTable({ ganttByRow, years, showQuarters, showMonths, getTaskPositi
                                 }}
                               >
                                 <div style={{
-                                  fontSize: '9px',
+                                  fontSize: `${taskConfig.circleFontSize || 9}px`,
                                   whiteSpace: 'nowrap',
                                   color: isDarkColor(taskColor) ? '#ffffff' : '#1f2937'
                                 }}>
@@ -370,7 +376,11 @@ function GanttTable({ ganttByRow, years, showQuarters, showMonths, getTaskPositi
                                     zIndex: 30
                                   }}
                                 >
-                                  <div className="text-gray-800" style={{ fontSize: '8px', whiteSpace: 'nowrap' }}>
+                                  <div style={{
+                                    fontSize: `${taskConfig.circleFontSize || 9}px`,
+                                    whiteSpace: 'nowrap',
+                                    color: '#1f2937'
+                                  }}>
                                     {attrValue}
                                   </div>
                                 </div>
@@ -403,7 +413,7 @@ function GanttTable({ ganttByRow, years, showQuarters, showMonths, getTaskPositi
                                 }}
                               >
                                 <div style={{
-                                  fontSize: '7px',
+                                  fontSize: `${taskConfig.rectangleFontSize || 7}px`,
                                   whiteSpace: 'nowrap',
                                   color: isDarkColor(taskColor) ? '#ffffff' : '#1f2937'
                                 }}>

@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { colorOptions } from '../constants/shapes'
 
-function ContextMenu({ contextMenu, onClose, onSelectShape, onSelectRowShapes, onAddMemo, onSelectColor }) {
+function ContextMenu({ contextMenu, onClose, onSelectShape, onSelectRowShapes, onAddMemo, onSelectColor, onSelectRowColors }) {
   const [showShapeSubmenu, setShowShapeSubmenu] = useState(false)
   const [showColorSubmenu, setShowColorSubmenu] = useState(false)
 
@@ -70,15 +70,15 @@ function ContextMenu({ contextMenu, onClose, onSelectShape, onSelectRowShapes, o
         </div>
       )}
 
-      {/* 색상 선택 (Task 메뉴에만 표시) - 이중 메뉴 */}
-      {isTaskMenu && (
+      {/* 색상 선택 (Task 또는 Row 메뉴) - 이중 메뉴 */}
+      {(isTaskMenu || isRowMenu) && (
         <div
           className="relative"
           onMouseEnter={() => setShowColorSubmenu(true)}
           onMouseLeave={() => setShowColorSubmenu(false)}
         >
           <button className="block w-full text-left px-4 py-2 text-sm hover:bg-gray-100 flex justify-between items-center">
-            <span>색상 선택</span>
+            <span>{isRowMenu ? 'Row 전체 색상 변경' : '색상 선택'}</span>
             <span>›</span>
           </button>
 
@@ -92,7 +92,12 @@ function ContextMenu({ contextMenu, onClose, onSelectShape, onSelectRowShapes, o
                 <button
                   key={color.value}
                   onClick={() => {
-                    onSelectColor(contextMenu.taskId, color.value)
+                    if (isRowMenu) {
+                      const taskIds = contextMenu.rowTasks.map(t => t.id)
+                      onSelectRowColors(taskIds, color.value)
+                    } else {
+                      onSelectColor(contextMenu.taskId, color.value)
+                    }
                     onClose()
                   }}
                   className="block w-full text-left px-4 py-2 text-sm hover:bg-gray-100 flex items-center gap-2"
